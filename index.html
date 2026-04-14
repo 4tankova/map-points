@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Military Map</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0e1310;
+      --panel: rgba(18, 24, 20, 0.94);
+      --panel-strong: rgba(12, 17, 14, 0.98);
+      --line: rgba(122, 140, 116, 0.22);
+      --line-strong: rgba(156, 177, 145, 0.32);
+      --text: #d7dfcf;
+      --muted: #95a08f;
+      --accent: #d90429;
+      --accent-2: #7c8f64;
+      --ok: #9fb08a;
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+      --radius: 16px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(120, 140, 110, 0.08), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(120, 140, 110, 0.05), transparent 28%),
+        var(--bg);
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: 390px 1fr;
+    }
+
+    #sidebar {
+      position: relative;
+      z-index: 1200;
+      background: linear-gradient(180deg, var(--panel), var(--panel-strong));
+      border-right: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      overflow-y: auto;
+      padding: calc(14px + var(--safe-top)) 14px calc(14px + var(--safe-bottom)) calc(14px + var(--safe-left));
+      backdrop-filter: blur(10px);
+    }
+
+    #mapWrap {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .brand-sub {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .dot-live {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 6px rgba(217, 4, 41, 0.15);
+      flex: 0 0 auto;
+    }
+
+    .section {
+      margin-bottom: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .section h2 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #e5eadf;
+    }
+
+    .section p,
+    .hint,
+    .meta,
+    label {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    textarea,
+    input[type="file"],
+    input[type="text"],
+    select,
+    button {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--line-strong);
+      outline: none;
+      font: inherit;
+    }
+
+    textarea,
+    input[type="text"],
+    select {
+      background: rgba(6, 10, 8, 0.65);
+      color: var(--text);
+      padding: 11px 12px;
+    }
+
+    textarea {
+      min-height: 150px;
+      resize: vertical;
+      font-family: Consolas, Menlo, monospace;
+      font-size: 13px;
+    }
+
+    input[type="file"] {
+      background: rgba(6, 10, 8, 0.65);
+      color: var(--muted);
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    button {
+      cursor: pointer;
+      padding: 11px 12px;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, #be132f, #8d0d23);
+      color: #fff;
+      border-color: rgba(255,255,255,0.08);
+      font-weight: 700;
+    }
+
+    .btn-secondary {
+      background: linear-gradient(180deg, rgba(120, 140, 100, 0.18), rgba(80, 95, 68, 0.18));
+      color: var(--text);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(7, 10, 8, 0.7);
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+
+    .legend {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .legend-mark {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(217, 4, 41, 0.18);
+      flex: 0 0 auto;
+    }
+
+    .floating-toggle {
+      position: absolute;
+      top: calc(12px + var(--safe-top));
+      right: calc(12px + var(--safe-right));
+      z-index: 1300;
+      display: none;
+      width: auto;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(14, 20, 16, 0.92);
+      color: var(--text);
+      border: 1px solid var(--line-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .leaflet-control-layers {
+      background: rgba(18, 24, 20, 0.94) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--line-strong) !important;
+      border-radius: 14px !important;
+      box-shadow: var(--shadow) !important;
+    }
+
+    .leaflet-control-layers label,
+    .leaflet-control-layers span {
+      color: var(--text) !important;
+    }
+
+    .leaflet-bar a {
+      background: rgba(18, 24, 20, 0.94) !important;
+      color: var(--text) !important;
+      border-bottom-color: var(--line) !important;
+    }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: rgba(16, 22, 18, 0.97);
+      color: var(--text);
+      border: 1px solid var(--line-strong);
+    }
+
+    .mobile-sheet-hidden #sidebar {
+      transform: translateY(100%);
+    }
+
+    @media (max-width: 980px) {
+      #app {
+        display: block;
+      }
+
+      #mapWrap,
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+
+      #sidebar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        max-height: 72dvh;
+        border-right: none;
+        border-top: 1px solid var(--line);
+        border-top-left-radius: 18px;
+        border-top-right-radius: 18px;
+        padding-top: 14px;
+        transform: translateY(0);
+        transition: transform 0.25s ease;
+      }
+
+      .floating-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="brand">
+        <div>
+          <div class="brand-title">Military Map</div>
+          <div class="brand-sub">Satellite / Tactical / Excel Import</div>
+        </div>
+        <div class="dot-live"></div>
+      </div>
+
+      <div class="section stack">
+        <h2>Ручне додавання координат</h2>
+        <p class="hint">Один рядок = одна точка. Підтримується формат через пробіл, кому або крапку з комою.</p>
+        <textarea id="coordsInput" placeholder="48.377678 35.06973
+47.7706 33.3467"></textarea>
+        <div class="grid-2">
+          <button id="addCoordsBtn" class="btn-primary">Додати точки</button>
+          <button id="clearTextBtn" class="btn-secondary">Очистити поле</button>
+        </div>
+      </div>
+
+      <div class="section stack">
+        <h2>Excel / CSV</h2>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+        <div class="grid-2">
+          <button id="loadFileBtn" class="btn-primary">Імпортувати файл</button>
+          <button id="fitBtn" class="btn-secondary">Показати все</button>
+        </div>
+      </div>
+
+      <div class="section stack">
+        <h2>Карта</h2>
+        <div class="grid-2">
+          <button id="clearMapBtn" class="btn-secondary">Очистити карту</button>
+          <button id="toggleLabelsBtn" class="btn-secondary">Підписи: увімкн.</button>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-mark"></span><span>червона точка</span></div>
+          <div class="legend-item"><span>🛰</span><span>супутник / перемикання шарів / підписи поверх</span></div>
+          <div class="legend-item"><span>📱</span><span>адаптивно під Windows, iPhone, Android</span></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Статус</h2>
+        <div class="status" id="status">Точок на карті: 0
+Супутник обмежений безпечним масштабом, щоб не було сірих тайлів.</div>
+      </div>
+    </aside>
+
+    <main id="mapWrap">
+      <button id="sheetToggleBtn" class="floating-toggle">☰ Панель</button>
+      <div id="map"></div>
+    </main>
+  </div>
+
+  <script>
+    const UA_CENTER = [48.3794, 31.1656];
+    const DEFAULT_ZOOM = 6;
+
+    const map = L.map('map', {
+      zoomControl: true,
+      preferCanvas: true,
+      maxZoom: 18
+    }).setView(UA_CENTER, DEFAULT_ZOOM);
+
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles © Esri',
+      maxNativeZoom: 18,
+      maxZoom: 18
+    });
+
+    const navigationLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO',
+      maxNativeZoom: 20,
+      maxZoom: 20
+    });
+
+    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO',
+      maxNativeZoom: 20,
+      maxZoom: 20
+    });
+
+    const baseLayers = {
+      'Супутник': satelliteLayer,
+      'Навігація': navigationLayer,
+      'Темна тактична': darkLayer
+    };
+
+    // Підписи населених пунктів і меж поверх будь-якої базової карти
+    const labelsLayer = L.layerGroup([
+      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Labels © Esri',
+        maxNativeZoom: 18,
+        maxZoom: 18
+      }),
+      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Road labels © Esri',
+        maxNativeZoom: 18,
+        maxZoom: 18,
+        opacity: 0.95
+      })
+    ]);
+
+    satelliteLayer.addTo(map);
+    labelsLayer.addTo(map);
+
+    const pointsLayer = L.layerGroup().addTo(map);
+    const overlays = {
+      'Підписи населених пунктів': labelsLayer,
+      'Точки': pointsLayer
+    };
+
+    L.control.layers(baseLayers, overlays, { collapsed: false, position: 'topright' }).addTo(map);
+
+    const coordsInput = document.getElementById('coordsInput');
+    const fileInput = document.getElementById('fileInput');
+    const statusBox = document.getElementById('status');
+    const sidebar = document.getElementById('sidebar');
+    const sheetToggleBtn = document.getElementById('sheetToggleBtn');
+    const toggleLabelsBtn = document.getElementById('toggleLabelsBtn');
+
+    const pointData = [];
+    let labelsVisible = true;
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function updateStatus(message = '') {
+      const total = `Точок на карті: ${pointData.length}`;
+      statusBox.textContent = message ? `${total}\n${message}` : total;
+    }
+
+    function addPoint(lat, lng, meta = {}) {
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+
+      const marker = L.circleMarker([lat, lng], {
+        radius: 6,
+        color: '#ff1f3d',
+        fillColor: '#ff1f3d',
+        fillOpacity: 0.95,
+        weight: 1,
+        opacity: 1
+      }).addTo(pointsLayer);
+
+      const popupParts = [
+        `<b>Координати</b><br>${lat}, ${lng}`
+      ];
+
+      if (meta.date) popupParts.push(`<b>Дата:</b> ${escapeHtml(meta.date)}`);
+      if (meta.location) popupParts.push(`<b>Населений пункт:</b> ${escapeHtml(meta.location)}`);
+      if (meta.kind) popupParts.push(`<b>Тип:</b> ${escapeHtml(meta.kind)}`);
+      if (meta.source) popupParts.push(`<b>Джерело:</b> ${escapeHtml(meta.source)}`);
+
+      marker.bindPopup(popupParts.join('<br>'));
+      pointData.push({ lat, lng, marker, ...meta });
+      return true;
+    }
+
+    function fitToPoints() {
+      if (!pointData.length) {
+        map.setView(UA_CENTER, DEFAULT_ZOOM);
+        return;
+      }
+      const bounds = L.latLngBounds(pointData.map(p => [p.lat, p.lng]));
+      map.fitBounds(bounds, { padding: [24, 24] });
+    }
+
+    function clearMap() {
+      pointsLayer.clearLayers();
+      pointData.length = 0;
+      updateStatus();
+    }
+
+    function parseManualCoordinates(text) {
+      const lines = text.split(/\r?\n/).map(v => v.trim()).filter(Boolean);
+      let added = 0;
+      let skipped = 0;
+
+      for (const line of lines) {
+        const parts = line.split(/[;,\s]+/).filter(Boolean);
+        if (parts.length < 2) {
+          skipped++;
+          continue;
+        }
+        const lat = Number(parts[0].replace(',', '.'));
+        const lng = Number(parts[1].replace(',', '.'));
+        if (addPoint(lat, lng, { source: 'вручну' })) added++;
+        else skipped++;
+      }
+
+      updateStatus(`Додано вручну: ${added}. Пропущено: ${skipped}.`);
+      if (added) fitToPoints();
+    }
+
+    function normalize(value) {
+      return String(value ?? '').trim();
+    }
+
+    function extractCoordPair(value) {
+      const text = normalize(value).replace(/,/g, '.');
+      const match = text.match(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/);
+      if (!match) return null;
+      return {
+        lat: Number(match[1]),
+        lng: Number(match[2])
+      };
+    }
+
+    function parseRowsFromExample(rows) {
+      let currentDate = '';
+      let added = 0;
+      let skipped = 0;
+
+      rows.forEach((row, idx) => {
+        const cells = Array.isArray(row) ? row : Object.values(row);
+        const a = normalize(cells[0]);
+        const b = normalize(cells[1]);
+        const d = normalize(cells[3]);
+        const e = normalize(cells[4]);
+
+        const dateLike = a.match(/^\d{1,2}\.\d{1,2}$/);
+        if (dateLike && !b && !d && !e) {
+          currentDate = a;
+          return;
+        }
+
+        const coords = extractCoordPair(b || a);
+        if (!coords) {
+          skipped++;
+          return;
+        }
+
+        const ok = addPoint(coords.lat, coords.lng, {
+          date: currentDate,
+          location: d,
+          kind: e,
+          source: `Excel, рядок ${idx + 1}`
+        });
+
+        if (ok) added++;
+        else skipped++;
+      });
+
+      updateStatus(`Імпортовано: ${added}. Пропущено: ${skipped}.`);
+      if (added) fitToPoints();
+    }
+
+    async function importSpreadsheet(file) {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        raw: false,
+        defval: ''
+      });
+      parseRowsFromExample(rows);
+    }
+
+    function toggleSidebarOnMobile() {
+      if (window.innerWidth > 980) return;
+      document.body.classList.toggle('mobile-sheet-hidden');
+    }
+
+    function syncSheetButton() {
+      if (window.innerWidth > 980) {
+        document.body.classList.remove('mobile-sheet-hidden');
+      }
+      const hidden = document.body.classList.contains('mobile-sheet-hidden');
+      sheetToggleBtn.textContent = hidden ? '☰ Панель' : '✕ Закрити';
+    }
+
+    document.getElementById('addCoordsBtn').addEventListener('click', () => {
+      parseManualCoordinates(coordsInput.value);
+    });
+
+    document.getElementById('clearTextBtn').addEventListener('click', () => {
+      coordsInput.value = '';
+    });
+
+    document.getElementById('loadFileBtn').addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        updateStatus('Спочатку вибери Excel або CSV файл.');
+        return;
+      }
+      try {
+        await importSpreadsheet(file);
+      } catch (error) {
+        console.error(error);
+        updateStatus('Не вдалося прочитати файл. Перевір формат Excel / CSV.');
+      }
+    });
+
+    document.getElementById('fitBtn').addEventListener('click', fitToPoints);
+
+    document.getElementById('clearMapBtn').addEventListener('click', () => {
+      clearMap();
+      map.setView(UA_CENTER, DEFAULT_ZOOM);
+    });
+
+    toggleLabelsBtn.addEventListener('click', () => {
+      if (labelsVisible) {
+        map.removeLayer(labelsLayer);
+      } else {
+        map.addLayer(labelsLayer);
+      }
+      labelsVisible = !labelsVisible;
+      toggleLabelsBtn.textContent = `Підписи: ${labelsVisible ? 'увімкн.' : 'вимкн.'}`;
+    });
+
+    map.on('baselayerchange', (event) => {
+      // На супутнику лишаємо підписи завжди доступними.
+      if (labelsVisible && !map.hasLayer(labelsLayer)) {
+        map.addLayer(labelsLayer);
+      }
+    });
+
+    sheetToggleBtn.addEventListener('click', () => {
+      toggleSidebarOnMobile();
+      syncSheetButton();
+    });
+
+    window.addEventListener('resize', syncSheetButton);
+    syncSheetButton();
+    updateStatus();
+  </script>
+</body>
+</html>

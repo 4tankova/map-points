@@ -145,6 +145,7 @@
     textarea,
     input[type="file"],
     input[type="text"],
+    input[type="color"],
     select,
     button {
       width: 100%;
@@ -156,10 +157,16 @@
 
     textarea,
     input[type="text"],
-    select {
+    select,
+    input[type="color"] {
       background: rgba(6, 10, 8, 0.65);
       color: var(--text);
       padding: 11px 12px;
+    }
+
+    input[type="color"] {
+      height: 44px;
+      padding: 5px;
     }
 
     textarea {
@@ -291,6 +298,85 @@
       transform: translateY(100%);
     }
 
+
+    .draw-tool {
+      position: absolute;
+      left: calc(76px + var(--safe-left));
+      top: calc(12px + var(--safe-top));
+      z-index: 1300;
+      width: min(330px, calc(100vw - 24px));
+    }
+
+    .draw-toggle {
+      width: auto;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(14, 20, 16, 0.92);
+      color: var(--text);
+      border: 1px solid var(--line-strong);
+      box-shadow: var(--shadow);
+      font-weight: 700;
+    }
+
+    .draw-panel {
+      display: none;
+      margin-top: 8px;
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line-strong);
+      background: rgba(14, 20, 16, 0.95);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .draw-tool.open .draw-panel {
+      display: grid;
+      gap: 10px;
+    }
+
+    .draw-hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+      white-space: pre-line;
+    }
+
+
+    .draw-subtitle {
+      margin-top: 2px;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .edit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .edit-grid button {
+      padding: 9px 8px;
+      font-weight: 700;
+    }
+
+    .edit-active {
+      background: linear-gradient(180deg, #be132f, #8d0d23) !important;
+      color: #fff !important;
+      border-color: rgba(255,255,255,0.18) !important;
+      box-shadow: 0 0 0 3px rgba(217, 4, 41, 0.18);
+    }
+
+
+    @media (max-width: 980px) {
+      .draw-tool {
+        left: calc(76px + var(--safe-left));
+        right: auto;
+        top: calc(58px + var(--safe-top));
+      }
+    }
+
     @media (max-width: 980px) {
       #app {
         display: block;
@@ -339,9 +425,9 @@
 
       <div class="section stack">
         <h2>Ручне додавання координат</h2>
-        <p class="hint">Один рядок = одна точка. Підтримується формат через пробіл, кому або крапку з комою.</p>
+        <p class="hint">Один рядок = одна точка. Підтримуються координати та MGRS через пробіл, кому або крапку з комою.</p>
         <textarea id="coordsInput" placeholder="48.377678 35.06973
-37UDQ2542446297"></textarea>
+47.7706 33.3467"></textarea>
         <div class="grid-2">
           <button id="addCoordsBtn" class="btn-primary">Додати точки</button>
           <button id="clearTextBtn" class="btn-secondary">Очистити поле</button>
@@ -363,22 +449,69 @@
           <button id="clearMapBtn" class="btn-secondary">Очистити карту</button>
           <button id="toggleLabelsBtn" class="btn-secondary">Підписи: увімкн.</button>
         </div>
+        <button id="exportBtn" class="btn-primary">Експорт CSV</button>
         <div class="legend">
           <div class="legend-item"><span class="legend-mark"></span><span>червона точка</span></div>
           <div class="legend-item"><span>🛰</span><span>супутник / перемикання шарів / підписи поверх</span></div>
-          <div class="legend-item"><span>📱</span><span>адаптивно під Windows, iPhone, Android</span></div>
         </div>
       </div>
 
       <div class="section">
         <h2>Статус</h2>
         <div class="status" id="status">Точок на карті: 0
-Супутник обмежений безпечним масштабом, щоб не було сірих тайлів.</div>
+Старт карти — Україна. Координати поза межами Європи не додаються.</div>
       </div>
     </aside>
 
     <main id="mapWrap">
       <button id="sheetToggleBtn" class="floating-toggle">☰ Панель</button>
+      <div id="drawTool" class="draw-tool">
+        <button id="drawToolToggle" class="draw-toggle">▾ Палігон</button>
+        <div class="draw-panel">
+          <input type="text" id="polygonNameInput" placeholder="Назва" />
+          <div class="grid-2">
+            <label>Тип
+              <select id="polygonModeInput">
+                <option value="polygon">Точками</option>
+                <option value="circle">Коло</option>
+                <option value="rectangle">Прямокутник</option>
+              </select>
+            </label>
+            <label>Колір
+              <input type="color" id="polygonColorInput" value="#d90429" />
+            </label>
+          </div>
+          <label>Прозорість
+            <select id="polygonOpacityInput">
+              <option value="0.15">15%</option>
+              <option value="0.25">25%</option>
+              <option value="0.35" selected>35%</option>
+              <option value="0.5">50%</option>
+              <option value="0.7">70%</option>
+            </select>
+          </label>
+          <div class="grid-2">
+            <button id="startDrawBtn" class="btn-primary">Малювати</button>
+            <button id="finishDrawBtn" class="btn-secondary">Готово</button>
+          </div>
+          <div class="grid-2">
+            <button id="cancelDrawBtn" class="btn-secondary">Скасувати</button>
+            <button id="clearPolygonsBtn" class="btn-secondary">Очистити</button>
+          </div>
+          <div class="grid-2">
+            <button id="savePolygonsBtn" class="btn-secondary">Зберегти</button>
+            <button id="loadPolygonsBtn" class="btn-secondary">Завантажити</button>
+          </div>
+          <input type="file" id="polygonFileInput" accept=".json,application/json" />
+          <div class="draw-subtitle">Редагування</div>
+          <div class="edit-grid">
+            <button id="scaleShapeDownBtn" class="btn-secondary">−</button>
+            <button id="scaleShapeUpBtn" class="btn-secondary">＋</button>
+            <button id="editShapeBtn" class="btn-secondary">Редагувати</button>
+          </div>
+          <div id="drawHint" class="draw-hint">Клікни “Редагувати”, вибери фігуру: можна перейменувати, перетягувати й міняти розмір колесом або + / −.</div>
+        </div>
+      </div>
       <div id="map"></div>
     </main>
   </div>
@@ -386,12 +519,32 @@
   <script>
     const UA_CENTER = [48.3794, 31.1656];
     const DEFAULT_ZOOM = 6;
+    const EUROPE_BOUNDS = {
+      minLat: 34,
+      maxLat: 72,
+      minLng: -25,
+      maxLng: 45
+    };
 
     const map = L.map('map', {
       zoomControl: true,
-      preferCanvas: true,
+      preferCanvas: false,
       maxZoom: 18
     }).setView(UA_CENTER, DEFAULT_ZOOM);
+
+    map.setMaxBounds([
+      [EUROPE_BOUNDS.minLat, EUROPE_BOUNDS.minLng],
+      [EUROPE_BOUNDS.maxLat, EUROPE_BOUNDS.maxLng]
+    ]);
+    map.createPane('polygonsPane');
+    map.getPane('polygonsPane').style.zIndex = 410;
+    map.getPane('polygonsPane').style.pointerEvents = 'auto';
+    map.createPane('pointsPane');
+    map.getPane('pointsPane').style.zIndex = 650;
+    map.getPane('pointsPane').style.pointerEvents = 'auto';
+
+    const polygonRenderer = L.svg({ pane: 'polygonsPane' });
+    const pointsRenderer = L.svg({ pane: 'pointsPane' });
 
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles © Esri',
@@ -436,9 +589,11 @@
     labelsLayer.addTo(map);
 
     const pointsLayer = L.layerGroup().addTo(map);
+    const polygonsLayer = L.layerGroup().addTo(map);
     const overlays = {
       'Підписи населених пунктів': labelsLayer,
-      'Точки': pointsLayer
+      'Точки': pointsLayer,
+      'Полігони': polygonsLayer
     };
 
     L.control.layers(baseLayers, overlays, { collapsed: false, position: 'topright' }).addTo(map);
@@ -449,8 +604,21 @@
     const sidebar = document.getElementById('sidebar');
     const sheetToggleBtn = document.getElementById('sheetToggleBtn');
     const toggleLabelsBtn = document.getElementById('toggleLabelsBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const drawTool = document.getElementById('drawTool');
+    const drawToolToggle = document.getElementById('drawToolToggle');
+    const drawHint = document.getElementById('drawHint');
+    const polygonNameInput = document.getElementById('polygonNameInput');
+    const polygonModeInput = document.getElementById('polygonModeInput');
+    const polygonColorInput = document.getElementById('polygonColorInput');
+    const polygonOpacityInput = document.getElementById('polygonOpacityInput');
+    const polygonFileInput = document.getElementById('polygonFileInput');
+    const editShapeBtn = document.getElementById('editShapeBtn');
 
     const pointData = [];
+    const polygonData = [];
+    let selectedShape = null;
+    let editMode = false;
     let labelsVisible = true;
 
     function escapeHtml(value) {
@@ -467,9 +635,64 @@
       statusBox.textContent = message ? `${total}\n${message}` : total;
     }
 
+
+    function keepPointsOnTop() {
+      if (map.hasLayer(pointsLayer) && pointsLayer.bringToFront) pointsLayer.bringToFront();
+      pointData.forEach(point => {
+        if (point.marker && point.marker.bringToFront) point.marker.bringToFront();
+      });
+    }
+
+    function syncEditButton() {
+      if (!editShapeBtn) return;
+      editShapeBtn.classList.toggle('edit-active', editMode);
+      editShapeBtn.textContent = editMode ? 'Редагування' : 'Редагувати';
+    }
+
+    function syncSelectedShapeInputs() {
+      if (!selectedShape) return;
+      polygonNameInput.value = selectedShape.name || '';
+      polygonColorInput.value = selectedShape.color || '#d90429';
+      polygonOpacityInput.value = String(selectedShape.opacity || 0.35);
+    }
+
+    function updateSelectedShapeFromInputs() {
+      if (!editMode || !selectedShape) return;
+      const name = normalize(polygonNameInput.value) || selectedShape.name || 'Фігура';
+      const color = /^#[0-9a-f]{6}$/i.test(polygonColorInput.value || '') ? polygonColorInput.value : selectedShape.color;
+      const opacity = Math.max(0.05, Math.min(0.95, Number(polygonOpacityInput.value) || selectedShape.opacity || 0.35));
+      selectedShape.name = name;
+      selectedShape.color = color;
+      selectedShape.opacity = opacity;
+      bindShapePopup(selectedShape);
+      setShapeVisual(selectedShape, true);
+      keepPointsOnTop();
+      setDrawHint(`Редагування: ${selectedShape.name}. Можна перейменовувати, перетягувати й міняти розмір.`);
+    }
+
+    function setEditMode(value) {
+      editMode = Boolean(value);
+      syncEditButton();
+      if (editMode) {
+        if (selectedShape) syncSelectedShapeInputs();
+        setDrawHint(selectedShape ? `Редагування: ${selectedShape.name}. Перейменовуй, тягни саму фігуру, колесо або + / − змінює розмір.` : 'Режим редагування активний. Клікни або потягни фігуру.');
+      } else {
+        stopShapeDrag();
+        setDrawHint('Редагування вимкнено. Клікни “Редагувати”, щоб змінювати фігури.');
+      }
+    }
+
+    function isInEurope(lat, lng) {
+      return lat >= EUROPE_BOUNDS.minLat
+        && lat <= EUROPE_BOUNDS.maxLat
+        && lng >= EUROPE_BOUNDS.minLng
+        && lng <= EUROPE_BOUNDS.maxLng;
+    }
+
     function addPoint(lat, lng, meta = {}) {
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
       if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+      if (!isInEurope(lat, lng)) return false;
 
       const marker = L.circleMarker([lat, lng], {
         radius: 6,
@@ -477,8 +700,11 @@
         fillColor: '#ff1f3d',
         fillOpacity: 0.95,
         weight: 1,
-        opacity: 1
+        opacity: 1,
+        pane: 'pointsPane',
+        renderer: pointsRenderer
       }).addTo(pointsLayer);
+      if (marker.bringToFront) marker.bringToFront();
 
       const popupParts = [
         `<b>Координати</b><br>${lat}, ${lng}`
@@ -494,23 +720,44 @@
       return true;
     }
 
+    function getShapeBounds(shape) {
+      if (!shape) return null;
+      if (shape.layer && typeof shape.layer.getBounds === 'function') return shape.layer.getBounds();
+      if (shape.layer && typeof shape.layer.getLatLng === 'function') return L.latLngBounds([shape.layer.getLatLng()]);
+      return null;
+    }
+
     function fitToPoints() {
-      if (!pointData.length) {
+      const bounds = L.latLngBounds(pointData.map(p => [p.lat, p.lng]));
+      polygonData.forEach(shape => {
+        const shapeBounds = getShapeBounds(shape);
+        if (shapeBounds && shapeBounds.isValid()) bounds.extend(shapeBounds);
+      });
+      if (!bounds.isValid()) {
         map.setView(UA_CENTER, DEFAULT_ZOOM);
         return;
       }
-      const bounds = L.latLngBounds(pointData.map(p => [p.lat, p.lng]));
       map.fitBounds(bounds, { padding: [24, 24] });
     }
 
     function clearMap() {
       pointsLayer.clearLayers();
+      polygonsLayer.clearLayers();
       pointData.length = 0;
+      polygonData.length = 0;
       updateStatus();
     }
 
+    function normalizeMgrsText(value) {
+      return String(value ?? '')
+        .toUpperCase()
+        .replace(/[()\[\]{}]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
     function parseMgrs(value) {
-      const text = String(value ?? '').toUpperCase().replace(/\s+/g, '');
+      const text = String(value ?? '').toUpperCase().replace(/[^0-9A-Z]/g, '');
       const match = text.match(/^(\d{1,2})([C-HJ-NP-X])([A-HJ-NP-Z]{2})(\d*)$/);
       if (!match) return null;
 
@@ -534,12 +781,12 @@
       if (col < 0 || row < 0) return null;
 
       const precision = digits.length / 2;
-      const divisor = Math.pow(10, 5 - precision);
-      const eastingRemainder = digits.slice(0, precision).padEnd(5, '0');
-      const northingRemainder = digits.slice(precision).padEnd(5, '0');
+      const eastingDigits = digits.slice(0, precision);
+      const northingDigits = digits.slice(precision);
+      const scale = Math.pow(10, 5 - precision);
 
-      const easting = (col + 1) * 100000 + Number(eastingRemainder || 0) * divisor;
-      let northing = row * 100000 + Number(northingRemainder || 0) * divisor;
+      const easting = (col + 1) * 100000 + Number(eastingDigits || 0) * scale;
+      let northing = row * 100000 + Number(northingDigits || 0) * scale;
 
       const bandSouth = [-80, -72, -64, -56, -48, -40, -32, -24, -16, -8, 0, 8, 16, 24, 32, 40, 48, 56, 64, 72][bandIndex];
       const minNorthing = utmNorthingFromLat(bandSouth);
@@ -600,31 +847,557 @@
       return { lat: lat * 180 / Math.PI, lng };
     }
 
-    function parseManualCoordinates(text) {
-      const lines = text.split(/\r?\n/).map(v => v.trim()).filter(Boolean);
+    function extractMgrsMatches(text) {
+      const normalized = normalizeMgrsText(text);
+      const matches = [];
+      const pattern = /(?:^|[^0-9A-Z])(\d{1,2}\s*[C-HJ-NP-X]\s*[A-HJ-NP-Z]{2}\s*(?:(?:\d{1,5}\s+\d{1,5})|\d{2,10}))(?=$|[^0-9A-Z])/gi;
+      let match;
+      while ((match = pattern.exec(normalized)) !== null) {
+        matches.push(match[1]);
+      }
+      return matches;
+    }
+
+    function stripMgrsMatches(text) {
+      const pattern = /\(?\s*\d{1,2}\s*[C-HJ-NP-X]\s*[A-HJ-NP-Z]{2}\s*(?:\d{1,5}\s+\d{1,5}|\d{2,10})\s*\)?/gi;
+      return String(text ?? '').replace(pattern, ' ');
+    }
+
+    function parseManualCoordinates(text, sourceLabel = 'вручну') {
+      const rawText = String(text ?? '');
       let added = 0;
       let skipped = 0;
 
-      for (const line of lines) {
-        const mgrs = parseMgrs(line);
+      const mgrsMatches = extractMgrsMatches(rawText);
+      for (const item of mgrsMatches) {
+        const mgrs = parseMgrs(item);
         if (mgrs) {
-          if (addPoint(mgrs.lat, mgrs.lng, { source: 'вручну MGRS' })) added++;
+          if (addPoint(mgrs.lat, mgrs.lng, { source: `${sourceLabel} MGRS` })) added++;
           else skipped++;
-          continue;
-        }
-
-        const parts = line.split(/[;,\s]+/).filter(Boolean);
-        if (parts.length < 2) {
+        } else {
           skipped++;
-          continue;
         }
-        const lat = Number(parts[0].replace(',', '.'));
-        const lng = Number(parts[1].replace(',', '.'));
-        if (addPoint(lat, lng, { source: 'вручну' })) added++;
+      }
+
+      const restText = stripMgrsMatches(rawText);
+      const coordPattern = /(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)/g;
+      let coordFound = false;
+      let match;
+      while ((match = coordPattern.exec(restText)) !== null) {
+        coordFound = true;
+        const lat = Number(match[1].replace(',', '.'));
+        const lng = Number(match[2].replace(',', '.'));
+        if (addPoint(lat, lng, { source: sourceLabel })) added++;
         else skipped++;
       }
 
-      updateStatus(`Додано вручну: ${added}. Пропущено: ${skipped}.`);
+      if (!mgrsMatches.length && !coordFound && rawText.trim()) skipped++;
+
+      updateStatus(`Додано вручну: ${added}. Пропущено: ${skipped}. Координати поза межами Європи не додаються.`);
+      if (added) fitToPoints();
+    }
+
+    function getShapeOptions(options = {}) {
+      const name = normalize(options.name) || `Фігура ${polygonData.length + 1}`;
+      const color = /^#[0-9a-f]{6}$/i.test(options.color || '') ? options.color : '#d90429';
+      const opacity = Math.max(0.05, Math.min(0.95, Number(options.opacity) || 0.35));
+      return { name, color, opacity };
+    }
+
+    function bindShapePopup(item) {
+      const typeName = item.shape === 'circle' ? 'Коло' : item.shape === 'rectangle' ? 'Прямокутник' : 'Полігон';
+      let details = typeName;
+      if (item.shape === 'circle') details += `<br>Радіус: ${Math.round(item.radius)} м`;
+      if (item.shape === 'polygon') details += `<br>Точок: ${item.coords.length}`;
+      item.layer.bindPopup(`<b>${escapeHtml(item.name)}</b><br>${details}<br>Колір: ${escapeHtml(item.color)}<br>Прозорість: ${Math.round(item.opacity * 100)}%`);
+      item.layer.off('click');
+      item.layer.off('mousedown');
+      item.layer.off('touchstart');
+      item.layer.on('click', (event) => {
+        if (event?.originalEvent) {
+          L.DomEvent.stopPropagation(event.originalEvent);
+          L.DomEvent.preventDefault(event.originalEvent);
+        }
+        selectShape(item);
+      });
+      item.layer.on('mousedown', (event) => {
+        if (event?.originalEvent) {
+          L.DomEvent.stopPropagation(event.originalEvent);
+          L.DomEvent.preventDefault(event.originalEvent);
+        }
+        selectShape(item);
+        if (editMode) startShapeDrag(item, event);
+      });
+      item.layer.on('touchstart', (event) => {
+        if (event?.originalEvent) {
+          L.DomEvent.stopPropagation(event.originalEvent);
+          L.DomEvent.preventDefault(event.originalEvent);
+        }
+        selectShape(item);
+        if (editMode) startShapeDrag(item, event);
+      });
+    }
+
+    function setShapeVisual(item, selected = false) {
+      if (!item?.layer?.setStyle) return;
+      item.layer.options.interactive = true;
+      item.layer.setStyle({
+        color: item.color,
+        fillColor: item.color,
+        fillOpacity: item.opacity,
+        opacity: 0.95,
+        weight: selected ? 4 : 2,
+        dashArray: selected ? '8,6' : null
+      });
+      if (item.layer.bringToFront) item.layer.bringToFront();
+      keepPointsOnTop();
+    }
+
+    function selectShape(item) {
+      if (selectedShape && selectedShape !== item) setShapeVisual(selectedShape, false);
+      selectedShape = item;
+      setShapeVisual(item, true);
+      if (editMode) syncSelectedShapeInputs();
+      setDrawHint(editMode
+        ? `Редагування: ${item.name}. Перейменовуй, перетягуй, колесо або + / − змінює розмір.`
+        : `Вибрано: ${item.name}. Натисни “Редагувати”, щоб змінювати фігуру.`);
+    }
+
+    function unselectShape() {
+      if (selectedShape) setShapeVisual(selectedShape, false);
+      selectedShape = null;
+      setDrawHint('Вибір знято. Клікни по фігурі або увімкни “Редагувати”.');
+    }
+
+    function addPolygon(coords, options = {}) {
+      if (!Array.isArray(coords) || coords.length < 3) return false;
+      const safeCoords = coords
+        .map(p => ({ lat: Number(p.lat), lng: Number(p.lng) }))
+        .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng) && isInEurope(p.lat, p.lng));
+      if (safeCoords.length < 3) return false;
+
+      const { name, color, opacity } = getShapeOptions(options);
+      const layer = L.polygon(safeCoords.map(p => [p.lat, p.lng]), {
+        color, fillColor: color, fillOpacity: opacity, opacity: 0.95, weight: 2, pane: 'polygonsPane', renderer: polygonRenderer, interactive: true, bubblingMouseEvents: false
+      }).addTo(polygonsLayer);
+      const item = { shape: 'polygon', name, color, opacity, coords: safeCoords, layer };
+      bindShapePopup(item);
+      polygonData.push(item);
+      keepPointsOnTop();
+      return true;
+    }
+
+    function addCircle(center, radius, options = {}) {
+      const lat = Number(center?.lat);
+      const lng = Number(center?.lng);
+      const safeRadius = Number(radius);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || !isInEurope(lat, lng)) return false;
+      if (!Number.isFinite(safeRadius) || safeRadius <= 0) return false;
+
+      const { name, color, opacity } = getShapeOptions(options);
+      const layer = L.circle([lat, lng], {
+        radius: safeRadius, color, fillColor: color, fillOpacity: opacity, opacity: 0.95, weight: 2, pane: 'polygonsPane', renderer: polygonRenderer, interactive: true, bubblingMouseEvents: false
+      }).addTo(polygonsLayer);
+      const item = { shape: 'circle', name, color, opacity, center: { lat, lng }, radius: safeRadius, layer };
+      bindShapePopup(item);
+      polygonData.push(item);
+      keepPointsOnTop();
+      return true;
+    }
+
+    function addRectangle(corners, options = {}) {
+      if (!Array.isArray(corners) || corners.length < 2) return false;
+      const a = { lat: Number(corners[0].lat), lng: Number(corners[0].lng) };
+      const b = { lat: Number(corners[1].lat), lng: Number(corners[1].lng) };
+      if (!Number.isFinite(a.lat) || !Number.isFinite(a.lng) || !Number.isFinite(b.lat) || !Number.isFinite(b.lng)) return false;
+      if (!isInEurope(a.lat, a.lng) || !isInEurope(b.lat, b.lng)) return false;
+
+      const { name, color, opacity } = getShapeOptions(options);
+      const bounds = L.latLngBounds([[a.lat, a.lng], [b.lat, b.lng]]);
+      const layer = L.rectangle(bounds, {
+        color, fillColor: color, fillOpacity: opacity, opacity: 0.95, weight: 2, pane: 'polygonsPane', renderer: polygonRenderer, interactive: true, bubblingMouseEvents: false
+      }).addTo(polygonsLayer);
+      const item = { shape: 'rectangle', name, color, opacity, corners: [a, b], layer };
+      bindShapePopup(item);
+      polygonData.push(item);
+      keepPointsOnTop();
+      return true;
+    }
+
+    const drawState = {
+      active: false,
+      mode: 'polygon',
+      points: [],
+      tempLayers: []
+    };
+
+    function currentShapeOptions() {
+      return {
+        name: polygonNameInput.value,
+        color: polygonColorInput.value,
+        opacity: polygonOpacityInput.value
+      };
+    }
+
+    function clearTempDraw() {
+      drawState.tempLayers.forEach(layer => map.removeLayer(layer));
+      drawState.tempLayers = [];
+      drawState.points = [];
+    }
+
+    function setDrawHint(text) {
+      drawHint.textContent = text;
+      updateStatus(text);
+    }
+
+    function startDrawing() {
+      clearTempDraw();
+      drawState.active = true;
+      drawState.mode = polygonModeInput.value;
+      map.getContainer().style.cursor = 'crosshair';
+      if (drawState.mode === 'polygon') setDrawHint('Режим: точками. Клікай по карті, мінімум 3 точки. Потім натисни «Готово».');
+      if (drawState.mode === 'circle') setDrawHint('Режим: коло. 1-й клік — центр, 2-й клік — радіус.');
+      if (drawState.mode === 'rectangle') setDrawHint('Режим: прямокутник. 1-й клік — кут, 2-й клік — протилежний кут.');
+    }
+
+    function cancelDrawing() {
+      clearTempDraw();
+      drawState.active = false;
+      map.getContainer().style.cursor = '';
+      setDrawHint('Малювання скасовано.');
+    }
+
+    function addTempPoint(latlng) {
+      const dot = L.circleMarker(latlng, { radius: 4, color: '#ffffff', fillColor: '#ffffff', fillOpacity: 0.9, weight: 1, pane: 'pointsPane', renderer: pointsRenderer }).addTo(map);
+      drawState.tempLayers.push(dot);
+    }
+
+    function redrawTempPolygon() {
+      drawState.tempLayers = drawState.tempLayers.filter(layer => {
+        if (layer._isTempLine) {
+          map.removeLayer(layer);
+          return false;
+        }
+        return true;
+      });
+      if (drawState.points.length > 1) {
+        const line = L.polyline(drawState.points, { color: polygonColorInput.value, weight: 2, dashArray: '6,6' }).addTo(map);
+        line._isTempLine = true;
+        drawState.tempLayers.push(line);
+      }
+    }
+
+    function finishDrawing() {
+      if (!drawState.active) return;
+      let ok = false;
+      if (drawState.mode === 'polygon') ok = addPolygon(drawState.points.map(p => ({ lat: p.lat, lng: p.lng })), currentShapeOptions());
+      if (!ok) {
+        setDrawHint('Не додано. Для полігона потрібно мінімум 3 точки в межах Європи.');
+        return;
+      }
+      clearTempDraw();
+      drawState.active = false;
+      map.getContainer().style.cursor = '';
+      setDrawHint(`Додано: ${polygonData[polygonData.length - 1].name}.`);
+      fitToPoints();
+    }
+
+    function handleDrawClick(event) {
+      if (!drawState.active) return;
+      const latlng = event.latlng;
+      if (!isInEurope(latlng.lat, latlng.lng)) {
+        setDrawHint('Точка поза межами Європи не додається.');
+        return;
+      }
+
+      if (drawState.mode === 'polygon') {
+        drawState.points.push(latlng);
+        addTempPoint(latlng);
+        redrawTempPolygon();
+        setDrawHint(`Точок: ${drawState.points.length}. Для завершення натисни «Готово».`);
+        return;
+      }
+
+      if (drawState.mode === 'circle') {
+        drawState.points.push(latlng);
+        addTempPoint(latlng);
+        if (drawState.points.length === 1) {
+          setDrawHint('Центр задано. Клікни другу точку для радіуса.');
+          return;
+        }
+        const radius = map.distance(drawState.points[0], drawState.points[1]);
+        const ok = addCircle({ lat: drawState.points[0].lat, lng: drawState.points[0].lng }, radius, currentShapeOptions());
+        clearTempDraw();
+        drawState.active = false;
+        map.getContainer().style.cursor = '';
+        setDrawHint(ok ? `Додано коло: ${polygonData[polygonData.length - 1].name}.` : 'Коло не додано.');
+        if (ok) fitToPoints();
+        return;
+      }
+
+      if (drawState.mode === 'rectangle') {
+        drawState.points.push(latlng);
+        addTempPoint(latlng);
+        if (drawState.points.length === 1) {
+          setDrawHint('Перший кут задано. Клікни протилежний кут.');
+          return;
+        }
+        const ok = addRectangle(drawState.points.map(p => ({ lat: p.lat, lng: p.lng })), currentShapeOptions());
+        clearTempDraw();
+        drawState.active = false;
+        map.getContainer().style.cursor = '';
+        setDrawHint(ok ? `Додано прямокутник: ${polygonData[polygonData.length - 1].name}.` : 'Прямокутник не додано.');
+        if (ok) fitToPoints();
+      }
+    }
+
+    function shapePointsForCheck(item) {
+      if (!item) return [];
+      if (item.shape === 'polygon') return item.coords || [];
+      if (item.shape === 'rectangle') return item.corners || [];
+      if (item.shape === 'circle') {
+        const center = item.center;
+        const latDelta = item.radius / 111320;
+        const lngDelta = item.radius / (111320 * Math.max(0.2, Math.cos(center.lat * Math.PI / 180)));
+        return [
+          center,
+          { lat: center.lat + latDelta, lng: center.lng },
+          { lat: center.lat - latDelta, lng: center.lng },
+          { lat: center.lat, lng: center.lng + lngDelta },
+          { lat: center.lat, lng: center.lng - lngDelta }
+        ];
+      }
+      return [];
+    }
+
+    function shapeInsideEurope(item) {
+      return shapePointsForCheck(item).every(p => isInEurope(p.lat, p.lng));
+    }
+
+    function applyShapeGeometry(item) {
+      if (!item) return;
+      if (item.shape === 'polygon') item.layer.setLatLngs(item.coords.map(p => [p.lat, p.lng]));
+      if (item.shape === 'circle') {
+        item.layer.setLatLng([item.center.lat, item.center.lng]);
+        item.layer.setRadius(item.radius);
+      }
+      if (item.shape === 'rectangle') item.layer.setBounds(L.latLngBounds(item.corners.map(p => [p.lat, p.lng])));
+      bindShapePopup(item);
+      setShapeVisual(item, true);
+    }
+
+    function cloneShapeGeometry(item) {
+      return JSON.parse(JSON.stringify({
+        coords: item.coords,
+        center: item.center,
+        corners: item.corners,
+        radius: item.radius
+      }));
+    }
+
+    function restoreShapeGeometry(item, backup) {
+      item.coords = backup.coords;
+      item.center = backup.center;
+      item.corners = backup.corners;
+      item.radius = backup.radius;
+      applyShapeGeometry(item);
+    }
+
+    function translateShape(item, deltaLat, deltaLng) {
+      if (!item) return false;
+      const backup = cloneShapeGeometry(item);
+      if (item.shape === 'polygon') item.coords = item.coords.map(p => ({ lat: p.lat + deltaLat, lng: p.lng + deltaLng }));
+      if (item.shape === 'rectangle') item.corners = item.corners.map(p => ({ lat: p.lat + deltaLat, lng: p.lng + deltaLng }));
+      if (item.shape === 'circle') item.center = { lat: item.center.lat + deltaLat, lng: item.center.lng + deltaLng };
+
+      if (!shapeInsideEurope(item)) {
+        restoreShapeGeometry(item, backup);
+        return false;
+      }
+      applyShapeGeometry(item);
+      return true;
+    }
+
+    function getShapeCenter(item) {
+      const bounds = getShapeBounds(item);
+      if (bounds && bounds.isValid()) return bounds.getCenter();
+      if (item.shape === 'circle') return L.latLng(item.center.lat, item.center.lng);
+      return L.latLng(UA_CENTER[0], UA_CENTER[1]);
+    }
+
+    function moveSelectedShape(direction) {
+      if (!selectedShape) {
+        setDrawHint('Спочатку клікни по фігурі, яку треба редагувати.');
+        return;
+      }
+      const stepMeters = 1000;
+      const center = getShapeCenter(selectedShape);
+      const latStep = stepMeters / 111320;
+      const lngStep = stepMeters / (111320 * Math.max(0.2, Math.cos(center.lat * Math.PI / 180)));
+      const delta = { lat: 0, lng: 0 };
+      if (direction === 'up') delta.lat = latStep;
+      if (direction === 'down') delta.lat = -latStep;
+      if (direction === 'right') delta.lng = lngStep;
+      if (direction === 'left') delta.lng = -lngStep;
+
+      if (!translateShape(selectedShape, delta.lat, delta.lng)) {
+        setDrawHint('Не можна перемістити: фігура вийде за межі Європи.');
+        return;
+      }
+      setDrawHint(`Переміщено: ${selectedShape.name}.`);
+    }
+
+    function scaleSelectedShape(factor) {
+      if (!editMode) {
+        setDrawHint('Увімкни “Редагувати”, щоб змінювати розмір фігури.');
+        return;
+      }
+      if (!selectedShape) {
+        setDrawHint('Спочатку клікни по фігурі, яку треба редагувати.');
+        return;
+      }
+      const backup = cloneShapeGeometry(selectedShape);
+      const center = getShapeCenter(selectedShape);
+      const scalePoint = p => ({
+        lat: center.lat + (p.lat - center.lat) * factor,
+        lng: center.lng + (p.lng - center.lng) * factor
+      });
+
+      if (selectedShape.shape === 'polygon') selectedShape.coords = selectedShape.coords.map(scalePoint);
+      if (selectedShape.shape === 'rectangle') selectedShape.corners = selectedShape.corners.map(scalePoint);
+      if (selectedShape.shape === 'circle') selectedShape.radius = Math.max(20, selectedShape.radius * factor);
+
+      if (!shapeInsideEurope(selectedShape)) {
+        restoreShapeGeometry(selectedShape, backup);
+        setDrawHint('Не можна змінити розмір: фігура вийде за межі Європи.');
+        return;
+      }
+      applyShapeGeometry(selectedShape);
+      setDrawHint(factor > 1 ? `Збільшено: ${selectedShape.name}.` : `Зменшено: ${selectedShape.name}.`);
+    }
+
+    const shapeDragState = {
+      active: false,
+      item: null,
+      lastLatLng: null
+    };
+
+    function getEventLatLng(event) {
+      if (event?.latlng) return event.latlng;
+      const original = event?.originalEvent || event;
+      const touch = original?.touches?.[0] || original?.changedTouches?.[0];
+      const clientX = touch ? touch.clientX : original?.clientX;
+      const clientY = touch ? touch.clientY : original?.clientY;
+      if (Number.isFinite(clientX) && Number.isFinite(clientY)) {
+        const rect = map.getContainer().getBoundingClientRect();
+        return map.containerPointToLatLng([clientX - rect.left, clientY - rect.top]);
+      }
+      return null;
+    }
+
+    function startShapeDrag(item, event) {
+      if (drawState.active || !editMode || !item) return;
+      const latlng = getEventLatLng(event);
+      if (!latlng) return;
+      selectShape(item);
+      shapeDragState.active = true;
+      shapeDragState.item = item;
+      shapeDragState.lastLatLng = latlng;
+      map.dragging.disable();
+      if (event?.originalEvent) L.DomEvent.preventDefault(event.originalEvent);
+      setDrawHint(`Переміщення: ${item.name}. Тягни фігуру мишкою/пальцем.`);
+    }
+
+    function moveShapeDrag(event) {
+      if (!shapeDragState.active || !shapeDragState.item || !shapeDragState.lastLatLng) return;
+      const current = getEventLatLng(event);
+      if (!current) return;
+      const deltaLat = current.lat - shapeDragState.lastLatLng.lat;
+      const deltaLng = current.lng - shapeDragState.lastLatLng.lng;
+      if (translateShape(shapeDragState.item, deltaLat, deltaLng)) {
+        shapeDragState.lastLatLng = current;
+      } else {
+        setDrawHint('Фігура не виходить за межі Європи.');
+      }
+    }
+
+    function stopShapeDrag() {
+      if (!shapeDragState.active) return;
+      const name = shapeDragState.item?.name || 'фігура';
+      shapeDragState.active = false;
+      shapeDragState.item = null;
+      shapeDragState.lastLatLng = null;
+      map.dragging.enable();
+      setDrawHint(`Переміщено: ${name}. Колесо мишки змінює розмір.`);
+    }
+
+    function startSelectedShapeDragFromMap(event) {
+      if (!editMode || !selectedShape || drawState.active || shapeDragState.active) return;
+      startShapeDrag(selectedShape, event);
+    }
+
+    function handleShapeWheel(event) {
+      if (!editMode || !selectedShape || drawState.active) return;
+      event.preventDefault();
+      const factor = event.deltaY < 0 ? 1.08 : 0.92;
+      scaleSelectedShape(factor);
+    }
+
+    function clearPolygons() {
+      cancelDrawing();
+      polygonsLayer.clearLayers();
+      polygonData.length = 0;
+      selectedShape = null;
+      updateStatus('Фігури очищено.');
+    }
+
+    function serializeShape(item) {
+      const base = { shape: item.shape, name: item.name, color: item.color, opacity: item.opacity };
+      if (item.shape === 'circle') return { ...base, center: item.center, radius: item.radius };
+      if (item.shape === 'rectangle') return { ...base, corners: item.corners };
+      return { ...base, coords: item.coords };
+    }
+
+    function savePolygonsJson() {
+      if (!polygonData.length) {
+        updateStatus('Немає фігур для збереження.');
+        return;
+      }
+      const payload = {
+        type: 'military-map-shapes',
+        version: 2,
+        savedAt: new Date().toISOString(),
+        shapes: polygonData.map(serializeShape)
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `military-map-shapes-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      updateStatus(`Збережено фігур: ${polygonData.length}.`);
+    }
+
+    async function loadPolygonsJson(file) {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const list = Array.isArray(payload) ? payload : (payload.shapes || payload.polygons);
+      if (!Array.isArray(list)) throw new Error('Bad shapes file');
+
+      let added = 0;
+      let skipped = 0;
+      list.forEach(item => {
+        let ok = false;
+        if (item.shape === 'circle') ok = addCircle(item.center, item.radius, item);
+        else if (item.shape === 'rectangle') ok = addRectangle(item.corners, item);
+        else ok = addPolygon(item.coords, item);
+        if (ok) added++;
+        else skipped++;
+      });
+      updateStatus(`Завантажено фігур: ${added}. Пропущено: ${skipped}.`);
       if (added) fitToPoints();
     }
 
@@ -646,13 +1419,44 @@
       let currentDate = '';
       let added = 0;
       let skipped = 0;
+      let headerMap = null;
+
+      function numberValue(value) {
+        const num = Number(normalize(value).replace(',', '.'));
+        return Number.isFinite(num) ? num : null;
+      }
+
+      function buildHeaderMap(cells) {
+        const names = cells.map(v => normalize(v).toLowerCase());
+        const map = {};
+        names.forEach((name, index) => {
+          if (['lat', 'latitude', 'широта'].includes(name)) map.lat = index;
+          if (['lng', 'lon', 'long', 'longitude', 'довгота'].includes(name)) map.lng = index;
+          if (['date', 'дата'].includes(name)) map.date = index;
+          if (['location', 'населений пункт', 'місце'].includes(name)) map.location = index;
+          if (['kind', 'type', 'тип'].includes(name)) map.kind = index;
+          if (['source', 'джерело'].includes(name)) map.source = index;
+          if (['mgrs'].includes(name)) map.mgrs = index;
+        });
+        return map;
+      }
 
       rows.forEach((row, idx) => {
         const cells = Array.isArray(row) ? row : Object.values(row);
-        const a = normalize(cells[0]);
-        const b = normalize(cells[1]);
-        const d = normalize(cells[3]);
-        const e = normalize(cells[4]);
+        const normalizedCells = cells.map(normalize);
+
+        if (idx === 0) {
+          const possibleHeader = buildHeaderMap(normalizedCells);
+          if (possibleHeader.lat !== undefined || possibleHeader.mgrs !== undefined) {
+            headerMap = possibleHeader;
+            return;
+          }
+        }
+
+        const a = normalizedCells[0] || '';
+        const b = normalizedCells[1] || '';
+        const d = normalizedCells[3] || '';
+        const e = normalizedCells[4] || '';
 
         const dateLike = a.match(/^\d{1,2}\.\d{1,2}$/);
         if (dateLike && !b && !d && !e) {
@@ -660,24 +1464,68 @@
           return;
         }
 
-        const coords = extractCoordPair(b || a);
+        let coords = null;
+        let metaDate = currentDate;
+        let metaLocation = d;
+        let metaKind = e;
+        let metaSource = `файл, рядок ${idx + 1}`;
+
+        if (headerMap) {
+          const lat = headerMap.lat !== undefined ? numberValue(cells[headerMap.lat]) : null;
+          const lng = headerMap.lng !== undefined ? numberValue(cells[headerMap.lng]) : null;
+          if (lat !== null && lng !== null) coords = { lat, lng };
+
+          if (!coords && headerMap.mgrs !== undefined) {
+            const mgrs = parseMgrs(cells[headerMap.mgrs]);
+            if (mgrs) coords = { lat: mgrs.lat, lng: mgrs.lng };
+          }
+
+          if (headerMap.date !== undefined) metaDate = normalize(cells[headerMap.date]);
+          if (headerMap.location !== undefined) metaLocation = normalize(cells[headerMap.location]);
+          if (headerMap.kind !== undefined) metaKind = normalize(cells[headerMap.kind]);
+          if (headerMap.source !== undefined) metaSource = normalize(cells[headerMap.source]) || metaSource;
+        }
+
         if (!coords) {
+          const lat = numberValue(a);
+          const lng = numberValue(b);
+          if (lat !== null && lng !== null) coords = { lat, lng };
+        }
+
+        if (!coords) coords = extractCoordPair(b || a);
+
+        if (!coords) {
+          const joined = normalizedCells.join(' ');
+          const mgrsMatches = extractMgrsMatches(joined);
+          if (mgrsMatches.length) {
+            mgrsMatches.forEach(item => {
+              const mgrs = parseMgrs(item);
+              if (mgrs && addPoint(mgrs.lat, mgrs.lng, {
+                date: metaDate,
+                location: metaLocation,
+                kind: metaKind,
+                source: metaSource
+              })) added++;
+              else skipped++;
+            });
+            return;
+          }
           skipped++;
           return;
         }
 
         const ok = addPoint(coords.lat, coords.lng, {
-          date: currentDate,
-          location: d,
-          kind: e,
-          source: `Excel, рядок ${idx + 1}`
+          date: metaDate,
+          location: metaLocation,
+          kind: metaKind,
+          source: metaSource
         });
 
         if (ok) added++;
         else skipped++;
       });
 
-      updateStatus(`Імпортовано: ${added}. Пропущено: ${skipped}.`);
+      updateStatus(`Імпортовано: ${added}. Пропущено: ${skipped}. Координати поза межами Європи не додаються.`);
       if (added) fitToPoints();
     }
 
@@ -692,6 +1540,36 @@
         defval: ''
       });
       parseRowsFromExample(rows);
+    }
+
+    async function importSelectedFile(file) {
+      await importSpreadsheet(file);
+    }
+
+    function csvValue(value) {
+      const text = String(value ?? '');
+      return /[",;\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    }
+
+    function exportPointsCsv() {
+      if (!pointData.length) {
+        updateStatus('Немає точок для експорту.');
+        return;
+      }
+
+      const headers = ['lat', 'lng', 'date', 'location', 'kind', 'source'];
+      const rows = pointData.map(point => headers.map(key => csvValue(point[key])).join(';'));
+      const csv = [headers.join(';'), ...rows].join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `military-map-points-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      updateStatus(`Експортовано точок: ${pointData.length}.`);
     }
 
     function toggleSidebarOnMobile() {
@@ -722,7 +1600,7 @@
         return;
       }
       try {
-        await importSpreadsheet(file);
+        await importSelectedFile(file);
       } catch (error) {
         console.error(error);
         updateStatus('Не вдалося прочитати файл. Перевір формат Excel / CSV.');
@@ -730,6 +1608,45 @@
     });
 
     document.getElementById('fitBtn').addEventListener('click', fitToPoints);
+
+    exportBtn.addEventListener('click', exportPointsCsv);
+
+    drawToolToggle.addEventListener('click', () => {
+      drawTool.classList.toggle('open');
+      drawToolToggle.textContent = drawTool.classList.contains('open') ? '▴ Палігон' : '▾ Палігон';
+    });
+    document.getElementById('startDrawBtn').addEventListener('click', startDrawing);
+    document.getElementById('finishDrawBtn').addEventListener('click', finishDrawing);
+    document.getElementById('cancelDrawBtn').addEventListener('click', cancelDrawing);
+    document.getElementById('clearPolygonsBtn').addEventListener('click', clearPolygons);
+    document.getElementById('savePolygonsBtn').addEventListener('click', savePolygonsJson);
+    document.getElementById('loadPolygonsBtn').addEventListener('click', async () => {
+      const file = polygonFileInput.files[0];
+      if (!file) {
+        updateStatus('Спочатку вибери JSON файл полігонів.');
+        return;
+      }
+      try {
+        await loadPolygonsJson(file);
+      } catch (error) {
+        console.error(error);
+        updateStatus('Не вдалося завантажити фігури. Перевір JSON файл.');
+      }
+    });
+
+    document.getElementById('scaleShapeUpBtn').addEventListener('click', () => scaleSelectedShape(1.12));
+    document.getElementById('scaleShapeDownBtn').addEventListener('click', () => scaleSelectedShape(0.88));
+    editShapeBtn.addEventListener('click', () => setEditMode(!editMode));
+    polygonNameInput.addEventListener('input', updateSelectedShapeFromInputs);
+    polygonColorInput.addEventListener('input', updateSelectedShapeFromInputs);
+    polygonOpacityInput.addEventListener('change', updateSelectedShapeFromInputs);
+    syncEditButton();
+    map.on('mousemove', moveShapeDrag);
+    map.on('mouseup', stopShapeDrag);
+    map.on('touchmove', moveShapeDrag);
+    map.on('touchend', stopShapeDrag);
+    map.on('mouseout', stopShapeDrag);
+    map.getContainer().addEventListener('wheel', handleShapeWheel, { passive: false });
 
     document.getElementById('clearMapBtn').addEventListener('click', () => {
       clearMap();
@@ -745,6 +1662,8 @@
       labelsVisible = !labelsVisible;
       toggleLabelsBtn.textContent = `Підписи: ${labelsVisible ? 'увімкн.' : 'вимкн.'}`;
     });
+
+    map.on('click', handleDrawClick);
 
     map.on('baselayerchange', (event) => {
       // На супутнику лишаємо підписи завжди доступними.

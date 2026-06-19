@@ -11,17 +11,17 @@
 
   <style>
     :root {
-      --bg: #0e1310;
-      --panel: rgba(18, 24, 20, 0.94);
-      --panel-strong: rgba(12, 17, 14, 0.98);
-      --line: rgba(122, 140, 116, 0.22);
-      --line-strong: rgba(156, 177, 145, 0.32);
-      --text: #d7dfcf;
-      --muted: #95a08f;
-      --accent: #d90429;
-      --accent-2: #7c8f64;
-      --ok: #9fb08a;
-      --shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+      --bg: #090d10;
+      --panel: rgba(17, 24, 32, 0.94);
+      --panel-strong: rgba(11, 16, 22, 0.98);
+      --line: rgba(255, 255, 255, 0.08);
+      --line-strong: rgba(255, 255, 255, 0.18);
+      --text: #e1e7ed;
+      --muted: #8c9ba5;
+      --accent: #1a73e8;
+      --accent-2: #34a853;
+      --ok: #2ecc71;
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
       --radius: 16px;
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-right: env(safe-area-inset-right, 0px);
@@ -46,9 +46,24 @@
 
     body {
       background:
-        radial-gradient(circle at top left, rgba(120, 140, 110, 0.08), transparent 30%),
-        radial-gradient(circle at bottom right, rgba(120, 140, 110, 0.05), transparent 28%),
+        radial-gradient(circle at top left, rgba(26, 115, 232, 0.06), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(52, 168, 83, 0.03), transparent 28%),
         var(--bg);
+    }
+
+    /* Scrollbar styling for a modern look */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--panel-strong);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--line-strong);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--muted);
     }
 
     #app {
@@ -90,20 +105,21 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: rgba(255,255,255,0.02);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
     .brand-title {
       font-size: 20px;
       font-weight: 800;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      color: var(--text);
     }
 
     .brand-sub {
       margin-top: 4px;
       font-size: 12px;
       color: var(--muted);
-      letter-spacing: 0.06em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
     }
 
@@ -111,8 +127,8 @@
       width: 12px;
       height: 12px;
       border-radius: 999px;
-      background: var(--accent);
-      box-shadow: 0 0 0 6px rgba(217, 4, 41, 0.15);
+      background: #ea4335;
+      box-shadow: 0 0 0 6px rgba(234, 67, 53, 0.15);
       flex: 0 0 auto;
     }
 
@@ -122,6 +138,7 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: rgba(255,255,255,0.02);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
     .section h2 {
@@ -129,7 +146,8 @@
       font-size: 13px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #e5eadf;
+      color: var(--text);
+      font-weight: 700;
     }
 
     .section p,
@@ -159,14 +177,22 @@
     input[type="text"],
     select,
     input[type="color"] {
-      background: rgba(6, 10, 8, 0.65);
+      background: rgba(11, 16, 22, 0.65);
       color: var(--text);
       padding: 11px 12px;
+      transition: border-color 0.15s ease;
+    }
+
+    textarea:focus,
+    input[type="text"]:focus,
+    select:focus {
+      border-color: var(--accent);
     }
 
     input[type="color"] {
       height: 44px;
       padding: 5px;
+      cursor: pointer;
     }
 
     textarea {
@@ -177,7 +203,7 @@
     }
 
     input[type="file"] {
-      background: rgba(6, 10, 8, 0.65);
+      background: rgba(11, 16, 22, 0.65);
       color: var(--muted);
       padding: 10px;
       cursor: pointer;
@@ -198,15 +224,16 @@
     }
 
     .btn-primary {
-      background: linear-gradient(180deg, #be132f, #8d0d23);
+      background: linear-gradient(180deg, #1a73e8, #1557b0);
       color: #fff;
       border-color: rgba(255,255,255,0.08);
       font-weight: 700;
     }
 
     .btn-secondary {
-      background: linear-gradient(180deg, rgba(120, 140, 100, 0.18), rgba(80, 95, 68, 0.18));
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
       color: var(--text);
+      border-color: var(--line-strong);
     }
 
     .grid-2 {
@@ -224,10 +251,11 @@
       padding: 12px;
       border-radius: 12px;
       border: 1px solid var(--line);
-      background: rgba(7, 10, 8, 0.7);
+      background: rgba(11, 16, 22, 0.65);
       font-size: 13px;
       line-height: 1.5;
       white-space: pre-line;
+      color: var(--text);
     }
 
     .legend {
@@ -248,8 +276,8 @@
       width: 12px;
       height: 12px;
       border-radius: 999px;
-      background: var(--accent);
-      box-shadow: 0 0 0 3px rgba(217, 4, 41, 0.18);
+      background: #ea4335;
+      box-shadow: 0 0 0 3px rgba(234, 67, 53, 0.18);
       flex: 0 0 auto;
     }
 
@@ -262,14 +290,14 @@
       width: auto;
       padding: 10px 14px;
       border-radius: 999px;
-      background: rgba(14, 20, 16, 0.92);
+      background: rgba(17, 24, 32, 0.95);
       color: var(--text);
       border: 1px solid var(--line-strong);
       box-shadow: var(--shadow);
     }
 
     .leaflet-control-layers {
-      background: rgba(18, 24, 20, 0.94) !important;
+      background: rgba(17, 24, 32, 0.95) !important;
       color: var(--text) !important;
       border: 1px solid var(--line-strong) !important;
       border-radius: 14px !important;
@@ -282,14 +310,14 @@
     }
 
     .leaflet-bar a {
-      background: rgba(18, 24, 20, 0.94) !important;
+      background: rgba(17, 24, 32, 0.95) !important;
       color: var(--text) !important;
       border-bottom-color: var(--line) !important;
     }
 
     .leaflet-popup-content-wrapper,
     .leaflet-popup-tip {
-      background: rgba(16, 22, 18, 0.97);
+      background: rgba(17, 24, 32, 0.98);
       color: var(--text);
       border: 1px solid var(--line-strong);
     }
@@ -311,7 +339,7 @@
       width: auto;
       padding: 10px 14px;
       border-radius: 999px;
-      background: rgba(14, 20, 16, 0.92);
+      background: rgba(17, 24, 32, 0.95);
       color: var(--text);
       border: 1px solid var(--line-strong);
       box-shadow: var(--shadow);
@@ -324,7 +352,7 @@
       padding: 12px;
       border-radius: var(--radius);
       border: 1px solid var(--line-strong);
-      background: rgba(14, 20, 16, 0.95);
+      background: rgba(17, 24, 32, 0.98);
       box-shadow: var(--shadow);
       backdrop-filter: blur(10px);
     }
@@ -362,10 +390,10 @@
     }
 
     .edit-active {
-      background: linear-gradient(180deg, #be132f, #8d0d23) !important;
+      background: linear-gradient(180deg, #1a73e8, #1557b0) !important;
       color: #fff !important;
       border-color: rgba(255,255,255,0.18) !important;
-      box-shadow: 0 0 0 3px rgba(217, 4, 41, 0.18);
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.18);
     }
 
 
@@ -418,7 +446,7 @@
       <div class="brand">
         <div>
           <div class="brand-title">Military Map</div>
-          <div class="brand-sub">Satellite / Tactical / Excel Import</div>
+          <div class="brand-sub">Mapbox Streets / Satellite / Import</div>
         </div>
         <div class="dot-live"></div>
       </div>
@@ -436,19 +464,17 @@
 
       <div class="section stack">
         <h2>Excel / CSV</h2>
-        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+        <!-- Додано атрибут multiple для завантаження кількох файлів одночасно -->
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" multiple />
         <div class="grid-2">
-          <button id="loadFileBtn" class="btn-primary">Імпортувати файл</button>
+          <button id="loadFileBtn" class="btn-primary">Імпортувати файли</button>
           <button id="fitBtn" class="btn-secondary">Показати все</button>
         </div>
       </div>
 
       <div class="section stack">
         <h2>Карта</h2>
-        <div class="grid-2">
-          <button id="clearMapBtn" class="btn-secondary">Очистити карту</button>
-          <button id="toggleLabelsBtn" class="btn-secondary">Підписи: увімкн.</button>
-        </div>
+        <button id="clearMapBtn" class="btn-secondary">Очистити карту</button>
         <button id="exportBtn" class="btn-primary">Експорт CSV</button>
         <div class="legend">
           <div class="legend-item"><span class="legend-mark"></span><span>червона точка</span></div>
@@ -478,7 +504,7 @@
               </select>
             </label>
             <label>Колір
-              <input type="color" id="polygonColorInput" value="#d90429" />
+              <input type="color" id="polygonColorInput" value="#1a73e8" />
             </label>
           </div>
           <label>Прозорість
@@ -546,47 +572,57 @@
     const polygonRenderer = L.svg({ pane: 'polygonsPane' });
     const pointsRenderer = L.svg({ pane: 'pointsPane' });
 
-    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles © Esri',
-      maxNativeZoom: 18,
-      maxZoom: 18
-    });
+    
+    const mapboxToken = 'pk.eyJ1IjoiemhlcmVibGl1ayIsImEiOiJjbWowZXlzbzkwN3o1M2ZzYnh1Z21tNWgzIn0.faLCmv6ZARD8beduuAFFBQ';
 
-    const navigationLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '© OpenStreetMap © CARTO',
+    const mapboxStreets = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`, {
+      attribution: '© Mapbox © OpenStreetMap',
       maxNativeZoom: 20,
       maxZoom: 20
     });
 
-    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '© OpenStreetMap © CARTO',
+    const mapboxSatelliteStreets = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`, {
+      attribution: '© Mapbox © OpenStreetMap',
       maxNativeZoom: 20,
       maxZoom: 20
     });
 
+    const mapboxSatellite = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`, {
+      attribution: '© Mapbox © OpenStreetMap',
+      maxNativeZoom: 20,
+      maxZoom: 20
+    });
+
+    const mapboxDark = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`, {
+      attribution: '© Mapbox © OpenStreetMap',
+      maxNativeZoom: 20,
+      maxZoom: 20
+    });
+
+    const mapboxOutdoors = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`, {
+      attribution: '© Mapbox © OpenStreetMap',
+      maxNativeZoom: 20,
+      maxZoom: 20
+    });
+
+    
     const baseLayers = {
-      'Супутник': satelliteLayer,
-      'Навігація': navigationLayer,
-      'Темна тактична': darkLayer
+      'Карта (Google-стиль)': mapboxStreets,
+      'Гібрид (Супутник + Вулиці)': mapboxSatelliteStreets,
+      'Супутник': mapboxSatellite,
+      'Темна тактична': mapboxDark,
+      'Рельєф': mapboxOutdoors
     };
 
-    // Підписи населених пунктів і меж поверх будь-якої базової карти
-    const labelsLayer = L.layerGroup([
-      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Labels © Esri',
-        maxNativeZoom: 18,
-        maxZoom: 18
-      }),
-      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Road labels © Esri',
-        maxNativeZoom: 18,
-        maxZoom: 18,
-        opacity: 0.95
-      })
-    ]);
+ 
+    const labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO',
+      maxNativeZoom: 20,
+      maxZoom: 20
+    });
 
-    satelliteLayer.addTo(map);
-    labelsLayer.addTo(map);
+  
+    mapboxStreets.addTo(map);
 
     const pointsLayer = L.layerGroup().addTo(map);
     const polygonsLayer = L.layerGroup().addTo(map);
@@ -603,7 +639,6 @@
     const statusBox = document.getElementById('status');
     const sidebar = document.getElementById('sidebar');
     const sheetToggleBtn = document.getElementById('sheetToggleBtn');
-    const toggleLabelsBtn = document.getElementById('toggleLabelsBtn');
     const exportBtn = document.getElementById('exportBtn');
     const drawTool = document.getElementById('drawTool');
     const drawToolToggle = document.getElementById('drawToolToggle');
@@ -652,7 +687,7 @@
     function syncSelectedShapeInputs() {
       if (!selectedShape) return;
       polygonNameInput.value = selectedShape.name || '';
-      polygonColorInput.value = selectedShape.color || '#d90429';
+      polygonColorInput.value = selectedShape.color || '#1a73e8';
       polygonOpacityInput.value = String(selectedShape.opacity || 0.35);
     }
 
@@ -696,8 +731,8 @@
 
       const marker = L.circleMarker([lat, lng], {
         radius: 6,
-        color: '#ff1f3d',
-        fillColor: '#ff1f3d',
+        color: '#ea4335',
+        fillColor: '#ea4335',
         fillOpacity: 0.95,
         weight: 1,
         opacity: 1,
@@ -899,7 +934,7 @@
 
     function getShapeOptions(options = {}) {
       const name = normalize(options.name) || `Фігура ${polygonData.length + 1}`;
-      const color = /^#[0-9a-f]{6}$/i.test(options.color || '') ? options.color : '#d90429';
+      const color = /^#[0-9a-f]{6}$/i.test(options.color || '') ? options.color : '#1a73e8';
       const opacity = Math.max(0.05, Math.min(0.95, Number(options.opacity) || 0.35));
       return { name, color, opacity };
     }
@@ -1415,6 +1450,7 @@
       };
     }
 
+ 
     function parseRowsFromExample(rows) {
       let currentDate = '';
       let added = 0;
@@ -1525,8 +1561,7 @@
         else skipped++;
       });
 
-      updateStatus(`Імпортовано: ${added}. Пропущено: ${skipped}. Координати поза межами Європи не додаються.`);
-      if (added) fitToPoints();
+      return { added, skipped };
     }
 
     async function importSpreadsheet(file) {
@@ -1539,11 +1574,11 @@
         raw: false,
         defval: ''
       });
-      parseRowsFromExample(rows);
+      return parseRowsFromExample(rows);
     }
 
     async function importSelectedFile(file) {
-      await importSpreadsheet(file);
+      return await importSpreadsheet(file);
     }
 
     function csvValue(value) {
@@ -1593,17 +1628,42 @@
       coordsInput.value = '';
     });
 
+
     document.getElementById('loadFileBtn').addEventListener('click', async () => {
-      const file = fileInput.files[0];
-      if (!file) {
-        updateStatus('Спочатку вибери Excel або CSV файл.');
+      const files = fileInput.files;
+      if (!files || files.length === 0) {
+        updateStatus('Спочатку виберіть один або кілька Excel чи CSV файлів.');
         return;
       }
-      try {
-        await importSelectedFile(file);
-      } catch (error) {
-        console.error(error);
-        updateStatus('Не вдалося прочитати файл. Перевір формат Excel / CSV.');
+
+      let totalAdded = 0;
+      let totalSkipped = 0;
+      let failedFiles = [];
+
+      updateStatus(`Початок імпорту файлів (0/${files.length})...`);
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const result = await importSelectedFile(file);
+          totalAdded += result.added;
+          totalSkipped += result.skipped;
+        } catch (error) {
+          console.error(`Помилка під час обробки файлу ${file.name}:`, error);
+          failedFiles.push(file.name);
+        }
+      }
+
+      let statusMsg = `Загалом імпортовано: ${totalAdded}. Пропущено: ${totalSkipped}.`;
+      if (failedFiles.length > 0) {
+        statusMsg += `\nНе вдалося прочитати файли: ${failedFiles.join(', ')}.`;
+      } else {
+        statusMsg += `\nКоординати поза межами Європи не додавалися.`;
+      }
+
+      updateStatus(statusMsg);
+      if (totalAdded > 0) {
+        fitToPoints();
       }
     });
 
@@ -1653,22 +1713,19 @@
       map.setView(UA_CENTER, DEFAULT_ZOOM);
     });
 
-    toggleLabelsBtn.addEventListener('click', () => {
-      if (labelsVisible) {
-        map.removeLayer(labelsLayer);
-      } else {
-        map.addLayer(labelsLayer);
-      }
-      labelsVisible = !labelsVisible;
-      toggleLabelsBtn.textContent = `Підписи: ${labelsVisible ? 'увімкн.' : 'вимкн.'}`;
-    });
-
     map.on('click', handleDrawClick);
 
+ 
     map.on('baselayerchange', (event) => {
-      // На супутнику лишаємо підписи завжди доступними.
-      if (labelsVisible && !map.hasLayer(labelsLayer)) {
-        map.addLayer(labelsLayer);
+      const hasBuiltInLabels = event.name.includes('Google-стиль') || event.name.includes('Гібрид') || event.name.includes('Рельєф') || event.name.includes('Темна');
+      if (hasBuiltInLabels) {
+        if (map.hasLayer(labelsLayer)) {
+          map.removeLayer(labelsLayer);
+        }
+      } else {
+        if (labelsVisible && !map.hasLayer(labelsLayer)) {
+          map.addLayer(labelsLayer);
+        }
       }
     });
 

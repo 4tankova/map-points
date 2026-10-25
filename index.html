@@ -7,14 +7,15 @@
 <meta name="color-scheme" content="dark light">
 <title>Military Map</title>
 <script>
-/* Тема до рендеру (без "блимання") */
+/* Сесійний режим: у браузері нічого не зберігається. Прибираємо все, що лишили попередні версії. */
 (function () {
+  document.documentElement.dataset.theme = 'dark';
   try {
-    var s = JSON.parse(localStorage.getItem('military-map:settings:v3') || '{}');
-    var t = s.theme || 'dark';
-    if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-    document.documentElement.dataset.theme = t;
-  } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+    for (var i = localStorage.length - 1; i >= 0; i--) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('military-map') === 0) localStorage.removeItem(k);
+    }
+  } catch (e) { /* сховище недоступне — тим краще */ }
 })();
 /* Резервні CDN: якщо основний недоступний — підвантажуємо з іншого */
 function mmFallbackCss(el, url) { el.onerror = null; el.href = url; }
@@ -405,9 +406,10 @@ body.detail-open .tabs,body.detail-open .sb-body,body.detail-open .stats{display
           <input id="filterText" type="search" class="input" placeholder="Фільтр: назва, тип, дата, примітка…">
           <div class="chips" id="kindChips"></div>
           <div class="list" id="pointList"></div>
-          <div class="grid-2">
+          <div class="grid-3">
             <button class="btn" id="fitBtn">Показати все</button>
-            <button class="btn danger" id="clearPointsBtn">Видалити точки</button>
+            <button class="btn" id="dupBtn" title="Об'єднати точки в одному місці">Об'єднати</button>
+            <button class="btn danger" id="clearPointsBtn">Видалити</button>
           </div>
         </div>
       </section>
@@ -488,8 +490,9 @@ body.detail-open .tabs,body.detail-open .sb-body,body.detail-open .stats{display
           <h3>Дані</h3>
           <label class="toggle"><span>Лише Європа<small>координати поза регіоном не додаються</small></span><input type="checkbox" class="sw" data-setting="restrict"></label>
           <label class="toggle"><span>Автовиправлення lat/lng<small>міняє місцями, якщо переплутано порядок</small></span><input type="checkbox" class="sw" data-setting="autoSwap"></label>
-          <label class="toggle"><span>Пропускати дублікати</span><input type="checkbox" class="sw" data-setting="skipDuplicates"></label>
-          <label class="toggle"><span>Автозбереження в браузері</span><input type="checkbox" class="sw" data-setting="autosave"></label>
+          <label class="field"><span class="field-top">Об'єднувати точки ближче ніж <b id="mergeVal"></b></span><input type="range" min="0" max="60" step="5" data-setting="mergeRadius"></label>
+          <p class="hint">Точки в одному місці стають однією; різні дати, типи й назви записуються через кому. 0 — не об'єднувати.</p>
+          <p class="hint">Сесійний режим: у браузері нічого не зберігається. Після закриття вкладки все зникає, тож зберігайте роботу через «Файли → Резервна копія».</p>
         </div>
         <div class="card">
           <h3>Гарячі клавіші</h3>
@@ -508,7 +511,7 @@ body.detail-open .tabs,body.detail-open .sb-body,body.detail-open .stats{display
         </div>
         <div class="card">
           <h3>Небезпечна зона</h3>
-          <button class="btn danger" id="resetAllBtn">Очистити всі дані</button>
+          <button class="btn danger" id="resetAllBtn">Очистити все</button>
         </div>
       </section>
     </div>
@@ -577,7 +580,7 @@ const CFG = {
 };
 const DEFAULTS = {
   cluster: true, colorByKind: true, pointLabels: false, shapeLabels: true, filterOnMap: true, pointRadius: 6,
-  restrict: true, autoSwap: true, skipDuplicates: true, autosave: true,
+  restrict: true, autoSwap: true, mergeRadius: 25,
   baseLayer: 'Карта', autoLabels: true, view: null, tab: 'points',
   theme: 'dark', accent: '', mapBright: 100
 };
@@ -699,7 +702,7 @@ function parseCoordText(text, opts = {}) {
     s = s.replace(re, (m, pre, body) => {
       const ll = mgrsFromLoose(body);
       if (!ll) return m;
-      out.push(ll);
+      out.push({ ...ll, pr: 2 });
       return pre + blank(body);
     });
   }
@@ -718,7 +721,7 @@ function parseCoordText(text, opts = {}) {
   for (let i = 0; i + 1 < dmsVals.length; i += 2) {
     let a = dmsVals[i], b = dmsVals[i + 1];
     if ((a.h && 'EW'.includes(a.h)) || (b.h && 'NS'.includes(b.h))) [a, b] = [b, a];
-    out.push({ lat: a.v, lng: b.v });
+    out.push({ lat: a.v, lng: b.v, pr: 1 });
   }
   // Decimal pairs: dot decimals, then comma decimals
   const decRes = [
@@ -727,7 +730,7 @@ function parseCoordText(text, opts = {}) {
   ];
   for (const re of decRes) {
     s = s.replace(re, (m, pre, a, b) => {
-      out.push({ lat: parseFloat(a.replace(',', '.')), lng: parseFloat(b.replace(',', '.')) });
+      out.push({ lat: parseFloat(a.replace(',', '.')), lng: parseFloat(b.replace(',', '.')), pr: 0 });
       return pre + blank(m.slice(pre.length));
     });
   }
@@ -736,7 +739,12 @@ function parseCoordText(text, opts = {}) {
     if (m) { out.push({ lat: +m[1], lng: +m[2] }); s = ''; }
   }
   const label = s.replace(/https?:\/\/\S+/gi, ' ').replace(/\s+/g, ' ').replace(/^[\s,;:|()\[\]\-–—/@]+|[\s,;:|()\[\]\-–—/@]+$/g, '').trim();
-  return out.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng)).map(p => ({ lat: p.lat, lng: p.lng, label }));
+  // Одне місце, записане в кількох форматах (напр. "48.29, 25.93 (35U NQ ...)") — це ОДНА точка.
+  // Лишаємо найточніший запис: десяткові > DMS > MGRS.
+  const valid = out.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng)).sort((a, b) => (a.pr || 0) - (b.pr || 0));
+  const uniq = [];
+  for (const p of valid) if (!uniq.some(q => haversine(p, q) < 50)) uniq.push(p);
+  return uniq.map(p => ({ lat: p.lat, lng: p.lng, label }));
 }
 function haversine(a, b) {
   const R = 6371008.8, dLat = (b.lat - a.lat) * D2R, dLng = (b.lng - a.lng) * D2R;
@@ -783,11 +791,6 @@ const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = se
 const isMobile = () => window.matchMedia('(max-width: 899px)').matches;
 const canHover = window.matchMedia('(hover: hover)').matches;
 const res = () => ({ ok: 0, dup: 0, out: 0, bad: 0, shapes: 0 });
-const ls = {
-  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
-  del(k) { try { localStorage.removeItem(k); } catch { /* ignore */ } }
-};
 
 const ICONS = {
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
@@ -849,13 +852,13 @@ function download(data, name, mime) {
 
 /* ======================= STATE ======================= */
 const state = {
-  points: [], shapes: [], dupKeys: new Set(),
-  settings: { ...DEFAULTS, ...(ls.get(CFG.settingsKey) || {}) },
+  points: [], shapes: [], grid: new Map(),
+  settings: { ...DEFAULTS },
   filter: { text: '', kind: null },
   selected: null, editMode: false, mode: null, currentBase: null
 };
 const S = state.settings;
-const saveSettings = debounce(() => ls.set(CFG.settingsKey, S), 300);
+const saveSettings = () => {}; // сесійний режим: налаштування живуть лише до закриття вкладки
 const R = CFG.region;
 const inRegion = (lat, lng) => lat >= R.minLat && lat <= R.maxLat && lng >= R.minLng && lng <= R.maxLng;
 const clampLL = ll => S.restrict
@@ -1015,7 +1018,6 @@ const DEFAULT_POINT_COLOR = '#ef4444';
 function hashStr(s) { let h = 2166136261; for (const ch of s) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
 const kindColor = kind => kind ? PALETTE[hashStr(kind.toLowerCase()) % PALETTE.length] : DEFAULT_POINT_COLOR;
 const colorFor = p => isHex(p.color) ? p.color : (S.colorByKind ? kindColor(p.kind) : DEFAULT_POINT_COLOR);
-const dupKey = p => `${p.lat.toFixed(6)}|${p.lng.toFixed(6)}|${p.date}|${p.kind.toLowerCase()}`;
 
 // CircleMarker compatibility for markercluster
 if (!L.CircleMarker.prototype.setOpacity) {
@@ -1029,7 +1031,7 @@ function createPointsGroup() {
   pointsHolder.clearLayers();
   pointsGroup = (S.cluster && L.markerClusterGroup)
     ? L.markerClusterGroup({
-      chunkedLoading: true, animate: false, animateAddingMarkers: false, maxClusterRadius: 45,
+      chunkedLoading: false, animate: false, animateAddingMarkers: false, maxClusterRadius: 45,
       disableClusteringAtZoom: 13, spiderfyOnMaxZoom: false, showCoverageOnHover: false,
       iconCreateFunction(c) {
         const n = c.getChildCount(); const s = n < 10 ? 32 : n < 100 ? 38 : n < 1000 ? 44 : 52;
@@ -1088,27 +1090,97 @@ function addPoint(raw, opts = {}) {
   }
   const p = {
     id: str(raw.id) || uid(), lat: Math.round(lat * 1e7) / 1e7, lng: Math.round(lng * 1e7) / 1e7,
-    date: str(raw.date), location: str(raw.location), kind: str(raw.kind), note: str(raw.note),
+    date: normDateStr(raw.date), location: str(raw.location), kind: str(raw.kind), note: str(raw.note),
     source: str(raw.source), color: isHex(raw.color) ? raw.color : '', marker: null
   };
-  const key = dupKey(p);
-  if (!noDup && S.skipDuplicates && state.dupKeys.has(key)) return 'dup';
-  state.dupKeys.add(key);
+  if (!noDup) {
+    const q = findDupFor(p);
+    if (q) { if (mergeMeta(q, p) && render) refreshMarker(q); return 'dup'; }
+  }
   state.points.push(p);
+  gridAdd(p);
   if (render) { if (!(S.filterOnMap && filterActive()) || pointMatches(p)) pointsGroup.addLayer(getMarker(p)); scheduleUI(); }
   return 'ok';
+}
+/** "2026-10-01" / "2026-10-01T00:00" → "01.10.2026"; інші формати не чіпаємо. */
+function normDateStr(v) {
+  const t = str(v), m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z?)?$/.exec(t);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : t;
+}
+/* ---------- дублікати: те саме місце + дані, що не суперечать ---------- */
+const GRID = 2000;                // комірка індексу ≈ 55 м
+const gridKey = (i, j) => i * 1e6 + j;
+const gridCell = p => [Math.floor(p.lat * GRID), Math.floor(p.lng * GRID)];
+function gridAdd(p, grid = state.grid) { const [i, j] = gridCell(p); const k = gridKey(i, j); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(p); }
+function gridRemove(p) { const [i, j] = gridCell(p); const a = state.grid.get(gridKey(i, j)); if (a) { const x = a.indexOf(p); if (x >= 0) a.splice(x, 1); } }
+function* gridNear(p, grid = state.grid) { const [i, j] = gridCell(p); for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) yield* (grid.get(gridKey(i + di, j + dj)) || []); }
+const normText = v => str(v).toLowerCase().replace(/[.,;:()"'«»\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+const mergeR = () => Math.max(0, +S.mergeRadius || 0);
+/** Найближча наявна точка в радіусі об'єднання (метадані НЕ мають значення: одне місце = одна точка). */
+function findDupFor(p, grid = state.grid) {
+  const r = mergeR(); if (!r) return null;
+  let best = null, bd = Infinity;
+  for (const q of gridNear(p, grid)) {
+    if (q === p) continue;
+    const d = haversine(p, q);
+    if (d <= r && d < bd) { best = q; bd = d; }
+  }
+  return best;
+}
+/** Об'єднує текстові значення: однакові/вкладені не дублюються, різні записуються через роздільник. */
+function joinVals(a, b, sep) {
+  const parts = [];
+  for (const v of [...String(a || '').split(sep), ...String(b || '').split(sep)].map(x => x.trim()).filter(Boolean)) {
+    const n = normText(v);
+    const i = parts.findIndex(x => { const m = normText(x); return m === n || m.includes(n) || n.includes(m); });
+    if (i < 0) parts.push(v); else if (v.length > parts[i].length) parts[i] = v;
+  }
+  return parts.join(sep);
+}
+/** Переносить дані з p у q. Повертає true, якщо q змінилась. */
+function mergeMeta(q, p) {
+  const before = JSON.stringify([q.date, q.kind, q.location, q.note, q.color]);
+  q.date = joinVals(q.date, p.date, ', ');
+  q.kind = joinVals(q.kind, p.kind, ' / ');
+  q.location = joinVals(q.location, p.location, ' / ');
+  q.note = joinVals(q.note, p.note, '\n');
+  if (!q.color && p.color) q.color = p.color;
+  q.merged = (q.merged || 1) + (p.merged || 1);
+  const ch = before !== JSON.stringify([q.date, q.kind, q.location, q.note, q.color]);
+  if (ch && q.marker) { pointsGroup.removeLayer(q.marker); q.marker = null; }
+  return ch;
+}
+function refreshMarker(p) {
+  if (p.marker) pointsGroup.removeLayer(p.marker);
+  p.marker = null;
+  if (!(S.filterOnMap && filterActive()) || pointMatches(p)) pointsGroup.addLayer(getMarker(p));
+}
+/** Повертає пари [дублікат, основна точка] серед уже наявних точок. */
+function findNearDuplicates() {
+  const grid = new Map(), pairs = [];
+  for (const p of state.points) {
+    const q = findDupFor(p, grid);
+    if (q) pairs.push([p, q]); else gridAdd(p, grid);
+  }
+  return pairs;
+}
+function cleanDuplicates() {
+  const pairs = findNearDuplicates();
+  if (!pairs.length) { toast('Дублікатів не знайдено', 'ok'); return; }
+  pairs.forEach(([dup, keep]) => mergeMeta(keep, dup));
+  deletePoints(pairs.map(x => x[0]));
+  renderPoints();
+  toast(`Об'єднано дублікатів: ${pairs.length}`, 'ok');
 }
 function deletePoints(list) {
   const ids = new Set(list.map(p => p.id));
   if (detail.type === 'point' && ids.has(detail.ref.id)) closeDetail();
-  list.forEach(p => { if (p.marker) pointsGroup.removeLayer(p.marker); state.dupKeys.delete(dupKey(p)); });
+  list.forEach(p => { if (p.marker) pointsGroup.removeLayer(p.marker); gridRemove(p); });
   state.points = state.points.filter(p => !ids.has(p.id));
   map.closePopup(); scheduleSave(); scheduleUI();
 }
 function updatePoint(p, f) {
-  state.dupKeys.delete(dupKey(p));
   Object.assign(p, f);
-  state.dupKeys.add(dupKey(p));
   if (p.marker) pointsGroup.removeLayer(p.marker);
   p.marker = null;
   if (!(S.filterOnMap && filterActive()) || pointMatches(p)) pointsGroup.addLayer(getMarker(p));
@@ -1142,6 +1214,7 @@ function openPointPopup(p) {
     <div class="pp-head"><span class="dot" style="background:${colorFor(p)}"></span><div class="pp-title">${esc(p.location || 'Без назви')}</div></div>
     ${meta ? `<div class="pp-meta">${esc(meta)}</div>` : ''}
     ${p.note ? `<div class="pp-note clamp">${esc(p.note)}</div>` : ''}
+    ${p.merged > 1 ? `<div class="pp-meta">Об'єднано записів: ${p.merged}</div>` : ''}
     ${copyRows([['MGRS', mg], ['DD', dd]])}
     <div class="pp-actions">
       <button type="button" class="btn primary sm" data-a="details">${ICON('edit')}Деталі</button>
@@ -1894,11 +1967,14 @@ function importRows(rows, label) {
 function importWorkbook(buf, label) {
   if (!window.XLSX) throw new Error('бібліотека Excel не завантажилась');
   const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-  const r = res();
-  wb.SheetNames.forEach(name => {
+  const r = res(); r.notes = [];
+  const meta = (wb.Workbook && wb.Workbook.Sheets) || [];
+  wb.SheetNames.forEach((name, i) => {
+    if (meta[i] && meta[i].Hidden) { r.notes.push(`${label} › «${name}»: прихований аркуш пропущено`); return; }
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '' });
     const part = importRows(rows, wb.SheetNames.length > 1 ? `${label}/${name}` : label);
-    Object.keys(r).forEach(k => { r[k] += part[k] || 0; });
+    Object.keys(res()).forEach(k => { r[k] += part[k] || 0; });
+    if (wb.SheetNames.length > 1) r.notes.push(`${label} › «${name}»: нових ${part.ok}` + (part.dup ? `, збіглися з уже доданими ${part.dup}` : '') + (part.bad ? `, не розпізнано ${part.bad}` : ''));
   });
   return r;
 }
@@ -2004,17 +2080,18 @@ async function importFiles(fileList) {
   if (!files.length) return;
   const st = $('#importStatus');
   st.hidden = false; st.textContent = `Імпорт ${files.length} файл(ів)…`;
-  const tot = { ...res(), failed: [] };
+  const tot = { ...res(), failed: [], notes: [] };
   for (const f of files) {
-    try { const r = await importOne(f); Object.keys(res()).forEach(k => { tot[k] += r[k] || 0; }); }
+    try { const r = await importOne(f); Object.keys(res()).forEach(k => { tot[k] += r[k] || 0; }); (r.notes || []).forEach(n => tot.notes.push(n)); }
     catch (err) { console.error(err); tot.failed.push(`${f.name} — ${err.message || err}`); }
   }
   renderPoints(); scheduleSave(); scheduleUI();
   const lines = [`✓ Додано точок: ${tot.ok}`];
   if (tot.shapes) lines.push(`✓ Додано фігур: ${tot.shapes}`);
-  if (tot.dup) lines.push(`• Дублікатів пропущено: ${tot.dup}`);
+  if (tot.dup) lines.push(`• Записів в одному місці об'єднано: ${tot.dup}`);
   if (tot.out) lines.push(`• Поза регіоном: ${tot.out}`);
   if (tot.bad) lines.push(`• Не розпізнано записів: ${tot.bad}`);
+  tot.notes.forEach(x => lines.push(`  ${x}`));
   tot.failed.forEach(x => lines.push(`✕ ${x}`));
   st.textContent = lines.join('\n');
   toast(`Імпорт: +${tot.ok} точок${tot.shapes ? `, +${tot.shapes} фігур` : ''}`, tot.failed.length ? 'warn' : (tot.ok || tot.shapes ? 'ok' : 'warn'));
@@ -2088,16 +2165,13 @@ function exportBackup() {
 
 /* ======================= PERSISTENCE ======================= */
 function setSaveState(kind, text) { const el = $('#saveState'); el.className = 'brand-sub ' + kind; el.textContent = text; }
-function saveNow() {
-  if (!S.autosave) { setSaveState('', 'Автозбереження вимкнено'); return; }
-  const ok = ls.set(CFG.dataKey, { v: 3, points: state.points.map(serializePoint), shapes: state.shapes.map(serializeShape) });
-  const t = new Date();
-  if (ok) setSaveState('ok', `Збережено о ${pad2(t.getHours())}:${pad2(t.getMinutes())}`);
-  else { setSaveState('err', 'Помилка збереження'); toast('Не вдалося зберегти: сховище браузера переповнене. Зробіть резервну копію.', 'error', 6000); }
-}
-const scheduleSave = debounce(saveNow, 600);
-window.addEventListener('pagehide', saveNow);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveNow(); });
+// Сесійний режим: дані живуть лише в цій вкладці й зникають після закриття. У браузер нічого не пишемо.
+const scheduleSave = () => {};
+const saveNow = () => {};
+window.addEventListener('beforeunload', e => {
+  if (!state.points.length && !state.shapes.length) return;
+  e.preventDefault(); e.returnValue = '';
+});
 
 /* ======================= UI RENDER ======================= */
 let uiQueued = false;
@@ -2374,6 +2448,7 @@ $('#coordsInput').addEventListener('keydown', e => { if (e.key === 'Enter' && (e
 $('#importQuickBtn').addEventListener('click', () => $('#fileInput').click());
 $('#clearTextBtn').addEventListener('click', () => { $('#coordsInput').value = ''; $('#coordsInput').focus(); });
 $('#fitBtn').addEventListener('click', fitAll);
+$('#dupBtn').addEventListener('click', () => { if (!mergeR()) { S.mergeRadius = 25; $('[data-setting=mergeRadius]').value = 25; mergeVal(); } cleanDuplicates(); });
 $('#clearPointsBtn').addEventListener('click', () => {
   if (!state.points.length) return;
   const list = filterActive() ? state.points.filter(pointMatches) : state.points.slice();
@@ -2453,9 +2528,11 @@ $$('[data-setting]').forEach(el => {
     saveSettings(); onSettingChange(k);
   });
 });
-radiusVal();
+const mergeVal = () => { $('#mergeVal').textContent = mergeR() ? `${mergeR()} м` : 'вимк.'; };
+radiusVal(); mergeVal();
 function onSettingChange(k) {
   switch (k) {
+    case 'mergeRadius': mergeVal(); break;
     case 'cluster': createPointsGroup(); state.points.forEach(p => { p.marker = null; }); renderPoints(); break;
     case 'colorByKind': state.points.forEach(p => p.marker?.setStyle({ fillColor: colorFor(p) })); scheduleUI(); break;
     case 'pointLabels':
@@ -2466,19 +2543,15 @@ function onSettingChange(k) {
     case 'shapeLabels': state.shapes.forEach(updateShapeLabel); break;
     case 'filterOnMap': renderPoints(); break;
     case 'restrict': applyBounds(); break;
-    case 'autosave':
-      if (!S.autosave) { ls.del(CFG.dataKey); setSaveState('', 'Автозбереження вимкнено'); toast('Автозбереження вимкнено, збережені дані видалено з браузера', 'warn', 4500); }
-      else saveNow();
-      break;
   }
 }
 $('#resetAllBtn').addEventListener('click', () => {
-  if (!confirm('Видалити ВСІ точки, фігури та виміри? Рекомендуємо спершу зробити резервну копію.')) return;
+  if (!confirm('Видалити ВСІ точки, фігури та виміри з цієї сесії?')) return;
   cancelDraw(); clearMeasure(); setEditMode(false); selectShape(null); closeDetail();
   pointsGroup.clearLayers(); shapesGroup.clearLayers(); searchLayer.clearLayers(); locLayer.clearLayers();
-  state.points = []; state.shapes = []; state.dupKeys.clear();
+  state.points = []; state.shapes = []; state.grid.clear();
   state.filter = { text: '', kind: null }; $('#filterText').value = '';
-  map.closePopup(); saveNow(); scheduleUI();
+  map.closePopup(); scheduleUI();
   map.flyTo(CFG.center, CFG.zoom); toast('Усі дані очищено', 'ok');
 });
 
@@ -2521,14 +2594,7 @@ window.addEventListener('online', () => toast('З\'єднання відновл
 
 /* ======================= INIT ======================= */
 createPointsGroup();
-if (S.autosave) {
-  const data = ls.get(CFG.dataKey);
-  if (data) {
-    (data.points || []).forEach(p => addPoint(p, { render: false, noRegion: true, noDup: true }));
-    (data.shapes || []).forEach(s => addShape(s, { save: false, noRegion: true }));
-  }
-  setSaveState('ok', state.points.length || state.shapes.length ? `Відновлено: ${state.points.length} точок, ${state.shapes.length} фігур` : 'Автозбереження увімкнено');
-} else setSaveState('', 'Автозбереження вимкнено');
+setSaveState('', 'Нова сесія · нічого не зберігається');
 renderPoints();
 renderActionBar();
 if (!window.XLSX) toast('Бібліотека Excel не завантажилась — імпорт XLSX недоступний (CSV/JSON/KML працюють)', 'warn', 6000);
